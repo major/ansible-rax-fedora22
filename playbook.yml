@@ -56,7 +56,7 @@
 
       - name: Configure automated updates
         lineinfile:
-          dest: /etc/dnf/dnf-automatic.conf
+          dest: /etc/dnf/automatic.conf
           regexp: "^apply_updates"
           line: "apply_updates = yes"
           state: present
@@ -72,6 +72,7 @@
         async: 0
         poll: 0
         ignore_errors: true
+        when: ansible_distribution_major_version == "21"
 
       - name: Waiting for server to come back (two reboots pending)
         local_action: >
@@ -79,6 +80,7 @@
           host={{ inventory_hostname }}
           port=22
           state=started
+        when: ansible_distribution_major_version == "21"
 
       - name: Refreshing facts
         action: setup
