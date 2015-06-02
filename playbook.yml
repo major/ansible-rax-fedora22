@@ -10,11 +10,21 @@
           state=present
         with_items:
           - deltarpm
+          - dnf
+          - dnf-automatic
           - htop
           - grub2
           - grubby
           - yum-plugin-fastestmirror
           - yum-utils
+
+      - name: Ensure extlinux and cloud-init are removed
+        dnf:
+          name: "{{ item }}"
+          state: absent
+        with_items:
+          - cloud-init
+          - syslinux-extlinux
 
       - name: Check to see if grub has been configured
         stat: path=/boot/grub2/grub.cfg
@@ -28,39 +38,34 @@
         command: grub2-install /dev/xvda
         when: grub_config.stat.exists == False
 
-      - name: Ensure extlinux is removed
-        yum:
-          name: syslinux-extlinux
-          state: absent
-
       - name: Remove /boot/extlinux.conf
         file:
           dest: /boot/extlinux.conf
           state: absent
 
-      - name: Disable cloud-init
-        service:
-          name: cloud-init
-          state: stopped
-          enabled: no
-
-      - name: Remove cloud-init
-        yum:
-          name: cloud-init
-          state: absent
-
       - name: Ensure Fedora 21 system is fully up to date
-        yum:
-          name: "*"
-          state: latest
+        command: dnf -y upgrade
 
       - name: Upgrade to Fedora 22
-        command: yum distro-sync --releasever=22 --assumeyes
+        command: dnf distro-sync --releasever=22 --assumeyes
 
       - name: Relabel SELinux contexts on reboot (requires an extra reboot)
         file: >
           dest=/.autorelabel
           state=touch
+
+      - name: Configure automated updates
+        lineinfile:
+          dest: /etc/dnf/dnf-automatic.conf
+          regexp: "^apply_updates"
+          line: "apply_updates = yes"
+          state: present
+
+      - name: Enable automatic updates
+        service:
+          name: dnf-automatic.timer
+          enabled: yes
+          state: started
 
       - name: Reboot server
         command: shutdown -r now "Ansible requesting reboot"
